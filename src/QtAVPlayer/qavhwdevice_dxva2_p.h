@@ -27,7 +27,7 @@ public:
     QAVVideoBuffer *videoBuffer(const QAVVideoFrame &frame) const override;
 
 private:
-    Q_DISABLE_COPY(QAVHWDevice_D3D11)
+    Q_DISABLE_COPY(QAVHWDevice_DXVA2)
 };
 
 QT_END_NAMESPACE
