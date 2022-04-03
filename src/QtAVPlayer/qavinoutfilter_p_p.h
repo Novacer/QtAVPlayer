@@ -27,7 +27,7 @@ class QAVInOutFilterPrivate
 {
 public:
     QAVInOutFilterPrivate(QAVInOutFilter *q) : q_ptr(q) { }
-    virtual ~QAVInOutFilter() = default;
+    virtual ~QAVInOutFilterPrivate() = default;
 
     QAVInOutFilter *q_ptr = nullptr;
     AVFilterContext *ctx = nullptr;
