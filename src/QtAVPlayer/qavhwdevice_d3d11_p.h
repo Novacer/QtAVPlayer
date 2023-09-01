@@ -23,12 +23,14 @@
 
 QT_BEGIN_NAMESPACE
 
-class Q_AVPLAYER_EXPORT QAVHWDevice_D3D11 : public QObject, public QAVHWDevice
+struct AVCodecContext;
+class QAVHWDevice_D3D11 : public QAVHWDevice
 {
 public:
-    QAVHWDevice_D3D11(QObject *parent = nullptr);
+    QAVHWDevice_D3D11() = default;
     ~QAVHWDevice_D3D11() = default;
 
+    void init(AVCodecContext *avctx) override;
     AVPixelFormat format() const override;
     AVHWDeviceType type() const override;
     QAVVideoBuffer *videoBuffer(const QAVVideoFrame &frame) const override;

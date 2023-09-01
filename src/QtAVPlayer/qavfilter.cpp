@@ -11,17 +11,21 @@
 
 QT_BEGIN_NAMESPACE
 
-QAVFilter::QAVFilter(QAVFilterPrivate &d, QObject *parent)
-    : QObject(parent)
-    , d_ptr(&d)
-{    
+QAVFilter::QAVFilter(
+    const QAVStream &stream,
+    const QString &name,
+    QAVFilterPrivate &d)
+    : d_ptr(&d)
+{
+    d.stream = stream;
+    d.name = name;
 }
 
 QAVFilter::~QAVFilter() = default;
 
-bool QAVFilter::eof() const
+bool QAVFilter::isEmpty() const
 {
-    return !d_func()->sourceFrame;
+    return d_func()->isEmpty;
 }
 
 QT_END_NAMESPACE

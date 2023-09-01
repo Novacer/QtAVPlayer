@@ -23,17 +23,24 @@
 #include "qavaudioinputfilter_p.h"
 #include "qavaudiooutputfilter_p.h"
 #include <QList>
+#include <QMutex>
 
 QT_BEGIN_NAMESPACE
 
 class QAVAudioFilterPrivate;
-class Q_AVPLAYER_EXPORT QAVAudioFilter : public QAVFilter
+class QAVAudioFilter : public QAVFilter
 {
 public:
-    QAVAudioFilter(const QList<QAVAudioInputFilter> &inputs, const QList<QAVAudioOutputFilter> &outputs, QObject *parent = nullptr);
+    QAVAudioFilter(
+        const QAVStream &stream,
+        const QString &name,
+        const QList<QAVAudioInputFilter> &inputs,
+        const QList<QAVAudioOutputFilter> &outputs,
+        QMutex &mutex);
 
     int write(const QAVFrame &frame) override;
     int read(QAVFrame &frame) override;
+    void flush() override;
 
 protected:
     Q_DECLARE_PRIVATE(QAVAudioFilter)

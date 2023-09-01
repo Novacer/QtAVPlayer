@@ -16,8 +16,8 @@ extern "C" {
 
 QT_BEGIN_NAMESPACE
 
-QAVFrame::QAVFrame(QObject *parent)
-    : QAVFrame(*new QAVFramePrivate, parent)
+QAVFrame::QAVFrame()
+    : QAVFrame(*new QAVFramePrivate)
 {
 }
 
@@ -27,8 +27,8 @@ QAVFrame::QAVFrame(const QAVFrame &other)
     *this = other;
 }
 
-QAVFrame::QAVFrame(QAVFramePrivate &d, QObject *parent)
-    : QAVStreamFrame(d, parent)
+QAVFrame::QAVFrame(QAVFramePrivate &d)
+    : QAVStreamFrame(d)
 {
     d.frame = av_frame_alloc();
 }
@@ -38,7 +38,7 @@ QAVFrame &QAVFrame::operator=(const QAVFrame &other)
     Q_D(QAVFrame);
     QAVStreamFrame::operator=(other);
 
-    auto other_priv = static_cast<QAVFramePrivate *>(other.d_ptr.data());
+    auto other_priv = static_cast<QAVFramePrivate *>(other.d_ptr.get());
     int64_t pts = d->frame->pts;
     av_frame_unref(d->frame);
     av_frame_ref(d->frame, other_priv->frame);
@@ -48,6 +48,7 @@ QAVFrame &QAVFrame::operator=(const QAVFrame &other)
 
     d->frameRate = other_priv->frameRate;
     d->timeBase = other_priv->timeBase;
+    d->filterName = other_priv->filterName;
     return *this;
 }
 
@@ -81,6 +82,17 @@ void QAVFrame::setTimeBase(const AVRational &value)
     d->timeBase = value;
 }
 
+QString QAVFrame::filterName() const
+{
+    return d_func()->filterName;
+}
+
+void QAVFrame::setFilterName(const QString &name)
+{
+    Q_D(QAVFrame);
+    d->filterName = name;
+}
+
 double QAVFramePrivate::pts() const
 {
     if (!frame || !stream)
@@ -97,7 +109,13 @@ double QAVFramePrivate::duration() const
 
     return frameRate.den && frameRate.num
            ? av_q2d(AVRational{frameRate.den, frameRate.num})
-           : frame->pkt_duration * av_q2d(stream.stream()->time_base);
+           :
+#if LIBAVUTIL_VERSION_MAJOR < 58
+             frame->pkt_duration
+#else
+             frame->duration
+#endif
+             * av_q2d(stream.stream()->time_base);
 }
 
 QT_END_NAMESPACE

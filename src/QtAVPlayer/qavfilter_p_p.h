@@ -20,7 +20,9 @@
 //
 
 #include <QtAVPlayer/qavframe.h>
+#include <QtAVPlayer/qavstream.h>
 #include <QList>
+#include <QMutex>
 
 QT_BEGIN_NAMESPACE
 
@@ -29,12 +31,16 @@ class QAVFilterPrivate
 {
     Q_DECLARE_PUBLIC(QAVFilter)
 public:
-    QAVFilterPrivate(QAVFilter *q) : q_ptr(q) { }
+    QAVFilterPrivate(QAVFilter *q, QMutex &mutex) : q_ptr(q), graphMutex(mutex) { }
     virtual ~QAVFilterPrivate() = default;
 
     QAVFilter *q_ptr = nullptr;
+    QAVStream stream;
+    QString name;
     QAVFrame sourceFrame;
     QList<QAVFrame> outputFrames;
+    bool isEmpty = true;
+    QMutex &graphMutex;
 };
 
 QT_END_NAMESPACE

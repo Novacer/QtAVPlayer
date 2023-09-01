@@ -24,14 +24,23 @@ QT_BEGIN_NAMESPACE
 class QAVAudioFilterPrivate : public QAVFilterPrivate
 {
 public:
-    QAVAudioFilterPrivate(QAVFilter *q) : QAVFilterPrivate(q) { }
+    QAVAudioFilterPrivate(QAVFilter *q, QMutex &mutex) : QAVFilterPrivate(q, mutex) { }
 
     QList<QAVAudioInputFilter> inputs;
     QList<QAVAudioOutputFilter> outputs;
+    int64_t filter_in_rescale_delta_last = AV_NOPTS_VALUE;
 };
 
-QAVAudioFilter::QAVAudioFilter(const QList<QAVAudioInputFilter> &inputs, const QList<QAVAudioOutputFilter> &outputs, QObject *parent)
-    : QAVFilter(*new QAVAudioFilterPrivate(this), parent)
+QAVAudioFilter::QAVAudioFilter(
+    const QAVStream &stream,
+    const QString &name,
+    const QList<QAVAudioInputFilter> &inputs,
+    const QList<QAVAudioOutputFilter> &outputs,
+    QMutex &mutex)
+    : QAVFilter(
+        stream,
+        name,
+        *new QAVAudioFilterPrivate(this, mutex))
 {
     Q_D(QAVAudioFilter);
     d->inputs = inputs;
@@ -41,58 +50,101 @@ QAVAudioFilter::QAVAudioFilter(const QList<QAVAudioInputFilter> &inputs, const Q
 int QAVAudioFilter::write(const QAVFrame &frame)
 {
     Q_D(QAVAudioFilter);
-    if (frame.stream().stream()->codecpar->codec_type != AVMEDIA_TYPE_AUDIO) {
+    if (!frame || frame.stream().stream()->codecpar->codec_type != AVMEDIA_TYPE_AUDIO) {
         qWarning() << "Frame is not audio";
         return AVERROR(EINVAL);
     }
+    if (!d->isEmpty)
+        return AVERROR(EAGAIN);
 
     d->sourceFrame = frame;
+    AVFrame *decoded_frame = d->sourceFrame.frame();
+    AVRational decoded_frame_tb = d->sourceFrame.stream().stream()->time_base;
+    // TODO: clear filter_in_rescale_delta_last
+    if (!d->inputs.isEmpty() && decoded_frame->pts != AV_NOPTS_VALUE) {
+        decoded_frame->pts = av_rescale_delta(decoded_frame_tb, decoded_frame->pts,
+                                              AVRational{1, decoded_frame->sample_rate},
+                                              decoded_frame->nb_samples,
+                                              &d->filter_in_rescale_delta_last,
+                                              AVRational{1, decoded_frame->sample_rate});
+    }
+
     for (auto &filter : d->inputs) {
-        QAVFrame ref = frame;
-        int ret = av_buffersrc_add_frame_flags(filter.ctx(), ref.frame(), 0);
+        QAVFrame ref = d->sourceFrame;
+        QMutexLocker locker(&d->graphMutex);
+        int ret = av_buffersrc_add_frame_flags(filter.ctx(), ref.frame(), AV_BUFFERSRC_FLAG_PUSH);
         if (ret < 0)
             return ret;
     }
-
+    d->isEmpty = false;
     return 0;
 }
 
 int QAVAudioFilter::read(QAVFrame &frame)
 {
     Q_D(QAVAudioFilter);
-    if (d->outputs.isEmpty() || !d->sourceFrame) {
-        frame = d->sourceFrame;
+    if (d->outputs.isEmpty() || d->isEmpty) {
         d->sourceFrame = {};
-        return 0;
+        d->isEmpty = true;
+        return AVERROR(EAGAIN);
     }
 
     int ret = 0;
     if (d->outputFrames.isEmpty()) {
-        for (auto &filter: d->outputs) {
+        for (int i = 0; i < d->outputs.size(); ++i) {
+            const auto &filter = d->outputs[i];
             while (true) {
                 QAVFrame out = d->sourceFrame;
                 // av_buffersink_get_frame_flags allocates frame's data
                 av_frame_unref(out.frame());
-                ret = av_buffersink_get_frame_flags(filter.ctx(), out.frame(), 0);
+                {
+                    QMutexLocker locker(&d->graphMutex);
+                    ret = av_buffersink_get_frame_flags(filter.ctx(), out.frame(), 0);
+                }
                 if (ret < 0)
                     break;
 
+#if LIBAVUTIL_VERSION_MAJOR < 58
                 if (!out.frame()->pkt_duration)
                     out.frame()->pkt_duration = d->sourceFrame.frame()->pkt_duration;
-                frame.setTimeBase(av_buffersink_get_time_base(filter.ctx()));
+#else
+                if (out.frame()->duration == AV_NOPTS_VALUE || out.frame()->duration == 0)
+                    out.frame()->duration = d->sourceFrame.frame()->duration;
+#endif
+                out.setFrameRate(av_buffersink_get_frame_rate(filter.ctx()));
+                out.setTimeBase(av_buffersink_get_time_base(filter.ctx()));
+                out.setFilterName(
+                    !filter.name().isEmpty()
+                    ? filter.name()
+                    : QString(QLatin1String("%1:%2")).arg(d->name).arg(QString::number(i)));
+                if (!out.stream())
+                    out.setStream(d->stream);
                 d->outputFrames.push_back(out);
             }
         }
     }
 
-    if (d->outputFrames.isEmpty()) {
-        frame = d->sourceFrame;
-        d->sourceFrame = {};
-        return ret;
+    ret = AVERROR(EAGAIN);
+    if (!d->outputFrames.isEmpty()) {
+        frame = d->outputFrames.takeFirst();
+        ret = 0;
     }
+    if (d->outputFrames.isEmpty()) {
+        d->sourceFrame = {};
+        d->isEmpty = true;
+    }
+    return ret;
+}
 
-    frame = d->outputFrames.takeFirst();
-    return 0;
+void QAVAudioFilter::flush()
+{
+    Q_D(QAVAudioFilter);
+    for (const auto &filter : d->inputs) {
+        int ret = av_buffersrc_add_frame(filter.ctx(), nullptr);
+        if (ret < 0)
+            qWarning() << "Could not flush:" << ret;
+    }
+    d->isEmpty = false;
 }
 
 QT_END_NAMESPACE

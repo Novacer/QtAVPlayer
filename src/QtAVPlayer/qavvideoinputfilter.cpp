@@ -34,13 +34,13 @@ public:
     AVRational frame_rate{};
 };
 
-QAVVideoInputFilter::QAVVideoInputFilter(QObject *parent)
-    : QAVInOutFilter(*new QAVVideoInputFilterPrivate(this), parent)
+QAVVideoInputFilter::QAVVideoInputFilter()
+    : QAVInOutFilter(*new QAVVideoInputFilterPrivate(this))
 {
 }
 
-QAVVideoInputFilter::QAVVideoInputFilter(const QAVFrame &frame, QObject *parent)
-    : QAVVideoInputFilter(parent)
+QAVVideoInputFilter::QAVVideoInputFilter(const QAVFrame &frame)
+    : QAVVideoInputFilter()
 {
     Q_D(QAVVideoInputFilter);
     const auto & frm = frame.frame();
@@ -76,6 +76,7 @@ QAVVideoInputFilter &QAVVideoInputFilter::operator=(const QAVVideoInputFilter &o
 
 int QAVVideoInputFilter::configure(AVFilterGraph *graph, AVFilterInOut *in)
 {
+    QAVInOutFilter::configure(graph, in);
     Q_D(QAVVideoInputFilter);
     AVBPrint args;
     av_bprint_init(&args, 0, AV_BPRINT_SIZE_AUTOMATIC);
@@ -97,13 +98,15 @@ int QAVVideoInputFilter::configure(AVFilterGraph *graph, AVFilterInOut *in)
                                            name, args.str, nullptr, graph);
     if (ret < 0)
         return ret;
-    
+
     return avfilter_link(d->ctx, 0, in->filter_ctx, in->pad_idx);
 }
 
 bool QAVVideoInputFilter::supports(const QAVFrame &frame) const
 {
     Q_D(const QAVVideoInputFilter);
+    if (!frame)
+        return true;
     const auto & frm = frame.frame();
     return d->width == frm->width
            && d->height == frm->height

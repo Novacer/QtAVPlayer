@@ -13,7 +13,8 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <QtGui/qopengl.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <va/va_drmcommon.h>
 #include <drm/drm_fourcc.h>
 
@@ -34,9 +35,8 @@ public:
     GLuint textures[2] = {0};
 };
 
-QAVHWDevice_VAAPI_DRM_EGL::QAVHWDevice_VAAPI_DRM_EGL(QObject *parent)
-    : QObject(parent)
-    , d_ptr(new QAVHWDevice_VAAPI_DRM_EGLPrivate)
+QAVHWDevice_VAAPI_DRM_EGL::QAVHWDevice_VAAPI_DRM_EGL()
+    : d_ptr(new QAVHWDevice_VAAPI_DRM_EGLPrivate)
 {
 }
 
@@ -44,7 +44,8 @@ QAVHWDevice_VAAPI_DRM_EGL::~QAVHWDevice_VAAPI_DRM_EGL()
 {
     Q_D(QAVHWDevice_VAAPI_DRM_EGL);
 
-    glDeleteTextures(2, d->textures);
+    if (d->textures[0])
+        glDeleteTextures(2, &d->textures[0]);
 }
 
 AVPixelFormat QAVHWDevice_VAAPI_DRM_EGL::format() const
@@ -81,7 +82,7 @@ public:
         return QList<QVariant>() << m_hw->textures[0] << m_hw->textures[1];
     }
 
-    QVariant handle() const override
+    QVariant handle(QRhi */*rhi*/) const override
     {
         if (!m_hw->textures[0])
             glGenTextures(2, m_hw->textures);
@@ -156,7 +157,7 @@ public:
 
 QAVVideoBuffer *QAVHWDevice_VAAPI_DRM_EGL::videoBuffer(const QAVVideoFrame &frame) const
 {
-    return new VideoBuffer_EGL(d_ptr.data(), frame);
+    return new VideoBuffer_EGL(d_ptr.get(), frame);
 }
 
 QT_END_NAMESPACE

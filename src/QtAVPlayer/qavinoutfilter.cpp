@@ -16,21 +16,20 @@ extern "C" {
 
 QT_BEGIN_NAMESPACE
 
-QAVInOutFilter::QAVInOutFilter(QObject *parent)
-    : QAVInOutFilter(*new QAVInOutFilterPrivate(this), parent)
+QAVInOutFilter::QAVInOutFilter()
+    : QAVInOutFilter(*new QAVInOutFilterPrivate(this))
 {
 }
 
-QAVInOutFilter::QAVInOutFilter(QAVInOutFilterPrivate &d, QObject *parent)
-    : QObject(parent)
-    , d_ptr(&d)
+QAVInOutFilter::QAVInOutFilter(QAVInOutFilterPrivate &d)
+    : d_ptr(&d)
 {
 }
 
 QAVInOutFilter::~QAVInOutFilter() = default;
 
 QAVInOutFilter::QAVInOutFilter(const QAVInOutFilter &other)
-    : QAVInOutFilter(nullptr)
+    : QAVInOutFilter()
 {
     *this = other;
 }
@@ -38,13 +37,28 @@ QAVInOutFilter::QAVInOutFilter(const QAVInOutFilter &other)
 QAVInOutFilter &QAVInOutFilter::operator=(const QAVInOutFilter &other)
 {
     d_ptr->ctx = other.d_ptr->ctx;
+    d_ptr->name = other.d_ptr->name;
     return *this;
+}
+
+int QAVInOutFilter::configure(AVFilterGraph *graph, AVFilterInOut *in)
+{
+    Q_D(QAVInOutFilter);
+    Q_UNUSED(graph);
+    if (in->name)
+        d->name = QString::fromUtf8(in->name);
+    return 0;
 }
 
 AVFilterContext *QAVInOutFilter::ctx() const
 {
     Q_D(const QAVInOutFilter);
     return d->ctx;
+}
+
+QString QAVInOutFilter::name() const
+{
+    return d_func()->name;
 }
 
 QT_END_NAMESPACE

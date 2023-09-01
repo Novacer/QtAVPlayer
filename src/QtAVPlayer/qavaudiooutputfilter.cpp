@@ -17,8 +17,8 @@ extern "C" {
 
 QT_BEGIN_NAMESPACE
 
-QAVAudioOutputFilter::QAVAudioOutputFilter(QObject *parent)
-    : QAVInOutFilter(*new QAVInOutFilterPrivate(this), parent)
+QAVAudioOutputFilter::QAVAudioOutputFilter()
+    : QAVInOutFilter(*new QAVInOutFilterPrivate(this))
 {
 }
 
@@ -26,6 +26,7 @@ QAVAudioOutputFilter::~QAVAudioOutputFilter() = default;
 
 int QAVAudioOutputFilter::configure(AVFilterGraph *graph, AVFilterInOut *out)
 {
+    QAVInOutFilter::configure(graph, out);
     Q_D(QAVInOutFilter);
     char name[255];
     static int index = 0;

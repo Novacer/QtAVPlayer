@@ -20,14 +20,15 @@
 //
 
 #include "qavhwdevice_p.h"
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
 class QAVHWDevice_VAAPI_X11_GLXPrivate;
-class Q_AVPLAYER_EXPORT QAVHWDevice_VAAPI_X11_GLX : public QObject, public QAVHWDevice
+class QAVHWDevice_VAAPI_X11_GLX : public QAVHWDevice
 {
 public:
-    QAVHWDevice_VAAPI_X11_GLX(QObject *parent = nullptr);
+    QAVHWDevice_VAAPI_X11_GLX();
     ~QAVHWDevice_VAAPI_X11_GLX();
 
     AVPixelFormat format() const override;
@@ -35,7 +36,7 @@ public:
     QAVVideoBuffer *videoBuffer(const QAVVideoFrame &frame) const override;
 
 private:
-    QScopedPointer<QAVHWDevice_VAAPI_X11_GLXPrivate> d_ptr;
+    std::unique_ptr<QAVHWDevice_VAAPI_X11_GLXPrivate> d_ptr;
     Q_DISABLE_COPY(QAVHWDevice_VAAPI_X11_GLX)
     Q_DECLARE_PRIVATE(QAVHWDevice_VAAPI_X11_GLX)
 };

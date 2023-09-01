@@ -14,10 +14,10 @@ QT_BEGIN_NAMESPACE
 
 struct AVSubtitle;
 class QAVSubtitleFramePrivate;
-class Q_AVPLAYER_EXPORT QAVSubtitleFrame : public QAVStreamFrame
+class QAVSubtitleFrame : public QAVStreamFrame
 {
 public:
-    QAVSubtitleFrame(QObject *parent = nullptr);
+    QAVSubtitleFrame();
     ~QAVSubtitleFrame();
     QAVSubtitleFrame(const QAVSubtitleFrame &other);
     QAVSubtitleFrame &operator=(const QAVSubtitleFrame &other);
