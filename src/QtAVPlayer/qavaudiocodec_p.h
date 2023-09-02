@@ -24,10 +24,10 @@
 
 QT_BEGIN_NAMESPACE
 
-class Q_AVPLAYER_EXPORT QAVAudioCodec : public QAVFrameCodec
+class QAVAudioCodec : public QAVFrameCodec
 {
 public:
-    QAVAudioCodec(QObject *parent = nullptr);
+    QAVAudioCodec();
     QAVAudioFormat audioFormat() const;
 
 private:

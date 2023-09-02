@@ -22,6 +22,7 @@
 #include <QGuiApplication>
 #include <QDebug>
 #include <QElapsedTimer>
+#include <QFile>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -44,6 +45,15 @@ public:
     QAbstractVideoSurface *m_surface = nullptr;
 };
 #endif
+
+static bool isStreamCurrent(int index, const QList<QAVStream> &streams)
+{
+    for (const auto &stream: streams) {
+        if (stream.index() == index)
+            return true;
+    }
+    return false;
+}
 
 int main(int argc, char *argv[])
 {
@@ -81,71 +91,92 @@ int main(int argc, char *argv[])
     auto videoSurface = vo->videoSink();
 #endif
 
-    QElapsedTimer frameElapsed;
-    frameElapsed.start();
-    int frameCount = 0;
-
     QObject::connect(&p, &QAVPlayer::videoFrame, &p, [&](const QAVVideoFrame &frame) {
-        const int fps = frameCount++ * 1000 / frameElapsed.elapsed();
-        rootObject->setProperty("frame_fps", fps);
-
-        QVideoFrame videoFrame = frame;
+        rootObject->setProperty("frame_fps", p.progress(frame.stream()).fps());
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        // Might download and convert data
+        QVideoFrame videoFrame = frame;
         if (!videoSurface->isActive())
             videoSurface->start({videoFrame.size(), videoFrame.pixelFormat(), videoFrame.handleType()});
         if (videoSurface->isActive())
             videoSurface->present(videoFrame);
-#else
-        videoSurface->setVideoFrame(videoFrame);
 #endif
     });
 
-    QObject::connect(&p, &QAVPlayer::audioFrame, &p, [&audioOutput](const QAVAudioFrame &frame) { audioOutput.play(frame); });
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QObject::connect(&p, &QAVPlayer::videoFrame, &p, [&](const QAVVideoFrame &frame) {
+        // Might download and convert data
+        QVideoFrame videoFrame = frame;
+        videoSurface->setVideoFrame(videoFrame);
+    }, Qt::DirectConnection);
+#endif
+
+    QObject::connect(&p, &QAVPlayer::audioFrame, &p, [&audioOutput](const QAVAudioFrame &frame) { audioOutput.play(frame); }, Qt::DirectConnection);
     QString file = argc > 1 ? QString::fromUtf8(argv[1]) : QLatin1String("http://clips.vorwaerts-gmbh.de/big_buck_bunny.mp4");
+    QString filter = argc > 2 ? QString::fromUtf8(argv[2]) : QString();
 
     QObject::connect(&p, &QAVPlayer::stateChanged, [&](auto s) { qDebug() << "stateChanged" << s << p.mediaStatus(); });
     QObject::connect(&p, &QAVPlayer::mediaStatusChanged, [&](auto status) {
         qDebug() << "mediaStatusChanged"<< status << p.state();
         if (status == QAVPlayer::LoadedMedia) {
-            auto videoStreams = p.videoStreams();
-            auto videoStream = p.videoStream();
-            qDebug() << "Video streams:" << videoStreams.size();
-            for (auto &s : p.videoStreams())
-                qDebug() << "[" << s.index() << "]" << s.metadata() << (s.index() == videoStream.index() ? "---current" : "");
+            auto availableVideoStreams = p.availableVideoStreams();
+            //p.setVideoStreams({});
+            auto videoStreams = p.currentVideoStreams();
+            qDebug() << "Video streams:" << availableVideoStreams.size();
+            for (auto &s : p.availableVideoStreams())
+                qDebug() << "[" << s.index() << "]" << s.metadata() << s.framesCount() << "frames," << s.frameRate() << "frame rate" << (isStreamCurrent(s.index(), videoStreams) ? "---current" : "");
 
-            auto audioStreams = p.audioStreams();
-            auto audioStream = p.audioStream();
-            qDebug() << "Audio streams:" << audioStreams.size();
-            for (auto &s : audioStreams)
-                qDebug() << "[" << s.index() << "]" << s.metadata() << (s.index() == audioStream.index() ? "---current" : "");
+            auto availableAudioStreams = p.availableAudioStreams();
+            auto audioStreams = p.currentAudioStreams();
+            qDebug() << "Audio streams:" << availableAudioStreams.size();
 
-            auto subtitleStreams = p.subtitleStreams();
-            qDebug() << "Subtitle streams:" << subtitleStreams.size();
-            for (auto &s : subtitleStreams) {
+            for (auto &s : availableAudioStreams)
+                qDebug() << "[" << s.index() << "]" << s.metadata() << s.framesCount() << "frames," << s.frameRate() << "frame rate" << (isStreamCurrent(s.index(), audioStreams) ? "---current" : "");
+
+            auto availableSubtitleStreams = p.availableSubtitleStreams();
+            qDebug() << "Subtitle streams:" << availableSubtitleStreams.size();
+            for (auto &s : availableSubtitleStreams) {
                 if (s.metadata()["language"] == "eng") {
                     p.setSubtitleStream(s);
                     break;
                 }
             }
 
-            auto subtitleStream = p.subtitleStream();
-            for (auto &s : subtitleStreams) {
-                qDebug() << "[" << s.index() << "]" << s.metadata() << (s.index() == subtitleStream.index() ? "---current" : "");
+            auto subtitleStreams = p.currentSubtitleStreams();
+            for (auto &s : availableSubtitleStreams) {
+                qDebug() << "[" << s.index() << "]" << s.metadata() << s.framesCount() << "frames," << s.frameRate() << "frame rate" << (isStreamCurrent(s.index(), subtitleStreams) ? "---current" : "");
             }
+            p.play();
+        } else if (status == QAVPlayer::EndOfMedia) {
+            for (const auto &s : p.availableVideoStreams())
+                qDebug() << s << p.progress(s);
+            for (const auto &s : p.availableAudioStreams())
+                qDebug() << s << p.progress(s);
+            for (const auto &s : p.availableSubtitleStreams())
+                qDebug() << s << p.progress(s);
         }
+
     });
     QObject::connect(&p, &QAVPlayer::durationChanged, [&](auto d) { qDebug() << "durationChanged" << d; });
 
     QObject::connect(&p, &QAVPlayer::subtitleFrame, &p, [](const QAVSubtitleFrame &frame) {
         for (unsigned i = 0; i < frame.subtitle()->num_rects; ++i) {
             if (frame.subtitle()->rects[i]->type == SUBTITLE_TEXT)
-                qDebug()<<"text:"<<frame.subtitle()->rects[i]->text;
+                qDebug() << "text:" << frame.subtitle()->rects[i]->text;
             else
-                qDebug()<<"ass:"<<frame.subtitle()->rects[i]->ass;
+                qDebug() << "ass:" << frame.subtitle()->rects[i]->ass;
         }
     });
-    p.setSource(file);
-    p.play();
+
+    std::unique_ptr<QFile> qrc;
+    if (file.startsWith(":/")) {
+        qrc = std::make_unique<QFile>(file);
+        if (!qrc->open(QIODevice::ReadOnly))
+            qrc.reset();
+    }
+    p.setSource(file, qrc.get());
+    p.setFilter(filter);
+    //p.setSynced(false);
 
     viewer.setMinimumSize(QSize(300, 360));
     viewer.resize(1960, 1086);

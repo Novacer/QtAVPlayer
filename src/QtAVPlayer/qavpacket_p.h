@@ -20,29 +20,34 @@
 //
 
 #include "qavframe.h"
-#include <QObject>
+#include "qavstream.h"
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
 struct AVPacket;
 class QAVPacketPrivate;
-class QAVStream;
-class Q_AVPLAYER_EXPORT QAVPacket : public QObject
+class QAVPacket
 {
 public:
-    QAVPacket(QObject *parent = nullptr);
+    QAVPacket();
     ~QAVPacket();
     QAVPacket(const QAVPacket &other);
     QAVPacket &operator=(const QAVPacket &other);
     operator bool() const;
 
-    void setTimeBase(const AVRational &value);
     AVPacket *packet() const;
     double duration() const;
     double pts() const;
 
+    QAVStream stream() const;
+    void setStream(const QAVStream &stream);
+
+    // Sends the packet to the codec
+    int send() const;
+
 protected:
-    QScopedPointer<QAVPacketPrivate> d_ptr;
+    std::unique_ptr<QAVPacketPrivate> d_ptr;
 
 private:
     Q_DECLARE_PRIVATE(QAVPacket)

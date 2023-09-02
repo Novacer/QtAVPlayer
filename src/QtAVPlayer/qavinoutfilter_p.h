@@ -20,7 +20,7 @@
 //
 
 #include <QtAVPlayer/qtavplayerglobal.h>
-#include <QObject>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
@@ -28,19 +28,20 @@ struct AVFilterGraph;
 struct AVFilterInOut;
 struct AVFilterContext;
 class QAVInOutFilterPrivate;
-class Q_AVPLAYER_EXPORT QAVInOutFilter : public QObject
+class QAVInOutFilter
 {
 public:
-    QAVInOutFilter(QObject *parent = nullptr);
-    ~QAVInOutFilter();
+    QAVInOutFilter();
+    virtual ~QAVInOutFilter();
     QAVInOutFilter(const QAVInOutFilter &other);
     QAVInOutFilter &operator=(const QAVInOutFilter &other);
-    virtual int configure(AVFilterGraph *graph, AVFilterInOut *in) = 0;
+    virtual int configure(AVFilterGraph *graph, AVFilterInOut *in);
     AVFilterContext *ctx() const;
+    QString name() const;
 
 protected:
-    QScopedPointer<QAVInOutFilterPrivate> d_ptr;
-    QAVInOutFilter(QAVInOutFilterPrivate &d, QObject *parent = nullptr);
+    std::unique_ptr<QAVInOutFilterPrivate> d_ptr;
+    QAVInOutFilter(QAVInOutFilterPrivate &d);
     Q_DECLARE_PRIVATE(QAVInOutFilter)
 };
 

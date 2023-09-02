@@ -1,2 +1,0 @@
-add_subdirectory(qml_video)
-add_subdirectory(extract_frames)

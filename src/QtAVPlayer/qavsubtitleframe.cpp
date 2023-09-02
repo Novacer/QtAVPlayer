@@ -30,8 +30,8 @@ static void subtitle_free(AVSubtitle *subtitle)
     avsubtitle_free(subtitle);
 }
 
-QAVSubtitleFrame::QAVSubtitleFrame(QObject *parent)
-    : QAVStreamFrame(*new QAVSubtitleFramePrivate, parent)
+QAVSubtitleFrame::QAVSubtitleFrame()
+    : QAVStreamFrame(*new QAVSubtitleFramePrivate)
 {
     Q_D(QAVSubtitleFrame);
     d->subtitle.reset(new AVSubtitle, subtitle_free);
@@ -43,7 +43,7 @@ QAVSubtitleFrame::~QAVSubtitleFrame()
 }
 
 QAVSubtitleFrame::QAVSubtitleFrame(const QAVSubtitleFrame &other)
-    : QAVSubtitleFrame(nullptr)
+    : QAVSubtitleFrame()
 {
     operator=(other);
 }
@@ -52,7 +52,7 @@ QAVSubtitleFrame &QAVSubtitleFrame::operator=(const QAVSubtitleFrame &other)
 {
     Q_D(QAVSubtitleFrame);
     QAVStreamFrame::operator=(other);
-    d->subtitle = static_cast<QAVSubtitleFramePrivate *>(other.d_ptr.data())->subtitle;
+    d->subtitle = static_cast<QAVSubtitleFramePrivate *>(other.d_ptr.get())->subtitle;
 
     return *this;
 }
@@ -65,7 +65,7 @@ AVSubtitle *QAVSubtitleFrame::subtitle() const
 
 double QAVSubtitleFramePrivate::pts() const
 {
-    if (!stream)
+    if (!subtitle)
         return NAN;
     AVRational tb;
     tb.num = 1;
@@ -75,7 +75,7 @@ double QAVSubtitleFramePrivate::pts() const
 
 double QAVSubtitleFramePrivate::duration() const
 {
-    if (!stream)
+    if (!subtitle)
         return 0.0;
     return (subtitle->end_display_time - subtitle->start_display_time) / 1000.0;
 }

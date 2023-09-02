@@ -10,16 +10,15 @@
 
 #include <QtAVPlayer/qtavplayerglobal.h>
 #include <QtAVPlayer/qavstream.h>
-#include <QObject>
-#include <QScopedPointer>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
 class QAVStreamFramePrivate;
-class Q_AVPLAYER_EXPORT QAVStreamFrame : public QObject
+class QAVStreamFrame
 {
 public:
-    QAVStreamFrame(QObject *parent = nullptr);
+    QAVStreamFrame();
     QAVStreamFrame(const QAVStreamFrame &other);
     ~QAVStreamFrame();
     QAVStreamFrame &operator=(const QAVStreamFrame &other);
@@ -31,10 +30,13 @@ public:
     double pts() const;
     double duration() const;
 
-protected:
-    QAVStreamFrame(QAVStreamFramePrivate &d, QObject *parent = nullptr);
+    // Receives a data from the codec from the stream
+    int receive();
 
-    QScopedPointer<QAVStreamFramePrivate> d_ptr;
+protected:
+    QAVStreamFrame(QAVStreamFramePrivate &d);
+
+    std::unique_ptr<QAVStreamFramePrivate> d_ptr;
     Q_DECLARE_PRIVATE(QAVStreamFrame)
 };
 

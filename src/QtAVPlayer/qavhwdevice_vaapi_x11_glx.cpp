@@ -35,9 +35,8 @@ public:
     GLuint texture = 0;
 };
 
-QAVHWDevice_VAAPI_X11_GLX::QAVHWDevice_VAAPI_X11_GLX(QObject *parent)
-    : QObject(parent)
-    , d_ptr(new QAVHWDevice_VAAPI_X11_GLXPrivate)
+QAVHWDevice_VAAPI_X11_GLX::QAVHWDevice_VAAPI_X11_GLX()
+    : d_ptr(new QAVHWDevice_VAAPI_X11_GLXPrivate)
 {
 }
 
@@ -84,7 +83,7 @@ public:
         return QAVVideoFrame::GLTextureHandle;
     }
 
-    QVariant handle() const override
+    QVariant handle(QRhi */*rhi*/) const override
     {
         if (!s_glXBindTexImageEXT) {
             qWarning() << "Could not get proc address: s_glXBindTexImageEXT";
@@ -175,7 +174,7 @@ public:
 
 QAVVideoBuffer *QAVHWDevice_VAAPI_X11_GLX::videoBuffer(const QAVVideoFrame &frame) const
 {
-    return new VideoBuffer_GLX(d_ptr.data(), frame);
+    return new VideoBuffer_GLX(d_ptr.get(), frame);
 }
 
 QT_END_NAMESPACE

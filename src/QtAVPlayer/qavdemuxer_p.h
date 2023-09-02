@@ -23,11 +23,14 @@
 #include "qavstream.h"
 #include "qavframe.h"
 #include "qavsubtitleframe.h"
-#include <QObject>
 #include <QMap>
-#include <QScopedPointer>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
+
+extern "C" {
+#include <libavutil/avutil.h>
+}
 
 class QAVDemuxerPrivate;
 class QAVVideoCodec;
@@ -36,32 +39,35 @@ class QAVIODevice;
 struct AVStream;
 struct AVCodecContext;
 struct AVFormatContext;
-class Q_AVPLAYER_EXPORT QAVDemuxer : public QObject
+class QAVDemuxer
 {
 public:
-    QAVDemuxer(QObject *parent = nullptr);
+    QAVDemuxer();
     ~QAVDemuxer();
 
     void abort(bool stop = true);
     int load(const QString &url, QAVIODevice *dev = nullptr);
     void unload();
 
-    QAVStream stream(int index) const;
-    QList<QAVStream> videoStreams() const;
-    QAVStream videoStream() const;
-    bool setVideoStream(const QAVStream &stream);
-    QList<QAVStream> audioStreams() const;
-    QAVStream audioStream() const;
-    bool setAudioStream(const QAVStream &stream);
+    AVMediaType currentCodecType(int index) const;
 
-    QList<QAVStream> subtitleStreams() const;
-    QAVStream subtitleStream() const;
-    bool setSubtitleStream(const QAVStream &stream);
+    QList<QAVStream> availableVideoStreams() const;
+    QList<QAVStream> currentVideoStreams() const;
+    bool setVideoStreams(const QList<QAVStream> &streams);
+
+    QList<QAVStream> availableAudioStreams() const;
+    QList<QAVStream> currentAudioStreams() const;
+    bool setAudioStreams(const QList<QAVStream> &streams);
+
+    QList<QAVStream> availableSubtitleStreams() const;
+    QList<QAVStream> currentSubtitleStreams() const;
+    bool setSubtitleStreams(const QList<QAVStream> &streams);
 
     QAVPacket read();
 
-    bool decode(const QAVPacket &pkt, QAVFrame &frame) const;
-    bool decode(const QAVPacket &pkt, QAVSubtitleFrame &frame) const;
+    void decode(const QAVPacket &pkt, QList<QAVFrame> &frames) const;
+    void decode(const QAVPacket &pkt, QList<QAVSubtitleFrame> &frames) const;
+    void flushCodecBuffers();
 
     double duration() const;
     bool seekable() const;
@@ -69,21 +75,34 @@ public:
     bool eof() const;
     double videoFrameRate() const;
 
-    AVRational frameRate() const;
-
     QMap<QString, QString> metadata() const;
 
     QString bitstreamFilter() const;
     int applyBitstreamFilter(const QString &bsfs);
 
+    QString inputFormat() const;
+    void setInputFormat(const QString &format);
+
+    QString inputVideoCodec() const;
+    void setInputVideoCodec(const QString &codec);
+
+    QMap<QString, QString> inputOptions() const;
+    void setInputOptions(const QMap<QString, QString> &opts);
+
+    void onFrameSent(const QAVStreamFrame &frame);
+    QAVStream::Progress progress(const QAVStream &s) const;
+
     static QStringList supportedFormats();
+    static QStringList supportedVideoCodecs();
     static QStringList supportedProtocols();
     static QStringList supportedBitstreamFilters();
 
 protected:
-    QScopedPointer<QAVDemuxerPrivate> d_ptr;
+    std::unique_ptr<QAVDemuxerPrivate> d_ptr;
 
 private:
+    int resetCodecs();
+
     Q_DISABLE_COPY(QAVDemuxer)
     Q_DECLARE_PRIVATE(QAVDemuxer)
 };

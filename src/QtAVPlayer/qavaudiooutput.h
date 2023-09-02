@@ -10,22 +10,26 @@
 
 #include <QtAVPlayer/qavaudioframe.h>
 #include <QtAVPlayer/qtavplayerglobal.h>
-#include <QScopedPointer>
+#include <QObject>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
 class QAVAudioOutputPrivate;
-class Q_AVPLAYER_EXPORT QAVAudioOutput : public QObject
+class QAVAudioOutput : public QObject
 {
 public:
     QAVAudioOutput(QObject *parent = nullptr);
     ~QAVAudioOutput();
 
     void setVolume(qreal v);
+    void setBufferSize(int bytes);
+    int bufferSize() const;
+
     bool play(const QAVAudioFrame &frame);
 
 protected:
-    QScopedPointer<QAVAudioOutputPrivate> d_ptr;
+    std::unique_ptr<QAVAudioOutputPrivate> d_ptr;
 
 private:
     Q_DISABLE_COPY(QAVAudioOutput)

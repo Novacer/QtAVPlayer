@@ -7,16 +7,16 @@ on:
     branches: [ master ]
 
 jobs:
-  linux-default:
+  linux:
     strategy:
       matrix:
         compiler: ['gcc-9']
-        qt_version: ["5.15.2", "6.3.0"]        
+        qt_version: ["5.15.2", "6.5.2"]
         include:
           - compiler: gcc-9
             packages: gcc-9 g++-9
             env: { 'CC': 'gcc-9', 'CXX': 'g++-9' }
-          - qt_version: "6.3.0"
+          - qt_version: "6.5.2"
             qt_modules: "qtmultimedia"
             qt_packages: "libxkbcommon-dev libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0"
 
@@ -25,7 +25,7 @@ jobs:
     env: ${{ matrix.env }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install compiler and FFmpeg dependencies
         run: |
@@ -48,46 +48,39 @@ jobs:
           version: ${{ matrix.qt_version }}
           modules: ${{ matrix.qt_modules }}
 
-      - name: QMake Build
-        run: |
-          qmake
-          make CC=$CC CXX=$CXX
-          make install
-
-      - name: CMake Build
-        run: |
-          mkdir build
-          cd build
-          cmake ../
-          make
-
       - name: QMake Test
         run: |
-          cd tests/
+          export QT_LOGGING_RULES="qt.QtAVPlayer.debug=true"
+          cd tests/auto/integration/qavdemuxer
           qmake
           make CC=$CC CXX=$CXX
-          export QT_LOGGING_RULES="qt.QtAVPlayer.debug=true"
-          cd auto/integration/qavdemuxer
-          ./tst_qavdemuxer --platform minimal
-          cd ../
-          cd qavplayer
+          ./tst_qavdemuxer
+          cd ../qavplayer
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          make CC=$CC CXX=$CXX
           ./tst_qavplayer --platform minimal -maxwarnings 100000
 
-  macos-qmake-default:
+      - name: Examples
+        run: |
+          cd examples/qml_video
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          make CC=$CC CXX=$CXX
+
+  macos:
     strategy:
       matrix:
         compiler: ['clang-9']
         include:
           - compiler: clang-9
-            packages: llvm@9
-            env: { 'CC': 'clang', 'CXX': 'clang++', 'CXXFLAGS': '-DNS_FORMAT_ARGUMENT\(A\)= -fapplication-extension' }
+            packages: llvm@13
+            env: { 'CC': 'clang', 'CXX': 'clang++', 'CXXFLAGS': '-DNS_FORMAT_ARGUMENT\(A\)= -fapplication-extension -std=c++17' }
 
     runs-on: macos-latest
 
     env: ${{ matrix.env }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install dependencies
         run: |
@@ -96,34 +89,43 @@ jobs:
       - name: Set environment path
         run: |
           echo "/usr/local/opt/qt5/bin" >> $GITHUB_PATH
+          echo "/usr/local/Cellar/ffmpeg/6.0/include" >> $GITHUB_PATH
           echo "/usr/local/opt/llvm@9/bin" >> $GITHUB_PATH
 
-      - name: Build
+      - name: QMake Test
         run: |
-          ffmpeg -version
-          qmake
-          make CC=$CC CXX=$CXX CXXFLAGS="$CXXFLAGS"
-          make install
-
-      - name: Test
-        run: |
-          cd tests/
-          qmake
-          make CC=$CC CXX=$CXX
           export QT_LOGGING_RULES="qt.QtAVPlayer.debug=true"
-          cd auto/integration/qavdemuxer
-          ./tst_qavdemuxer --platform minimal
-          cd ../
-          cd qavplayer
-          ./tst_qavplayer --platform minimal -maxwarnings 100000
+          cd tests/auto/integration/qavdemuxer
+          qmake INCLUDEPATH+="/usr/local/Cellar/ffmpeg/6.0/include" LIBS="-L/usr/local/Cellar/ffmpeg/6.0/lib"
+          make CC=$CC CXX=$CXX
+          tst_qavdemuxer.app/Contents/MacOS/tst_qavdemuxer
+          cd ../qavplayer
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA" INCLUDEPATH+="/usr/local/Cellar/ffmpeg/6.0/include" LIBS+="-L/usr/local/Cellar/ffmpeg/6.0/lib"
+          make CC=$CC CXX=$CXX
+          tst_qavplayer.app/Contents/MacOS/tst_qavplayer --platform minimal -maxwarnings 100000
 
-  windows-vs-qmake-default:
+      - name: Examples
+        run: |
+          cd examples/qml_video
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA" INCLUDEPATH+="/usr/local/Cellar/ffmpeg/6.0/include" LIBS+="-L/usr/local/Cellar/ffmpeg/6.0/lib"
+          make CC=$CC CXX=$CXX
+
+  windows:
+    strategy:
+      matrix:
+        qt_version: ["5.15.2"]
+        type: ["MSVC", "MINGW"]
+        include:
+          - qt_version: "6.5.2"
+            qt_modules: "qtmultimedia"
+
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Init vs environment
+        if: ${{ matrix.type == 'MSVC' }}
         uses: egor-tensin/vs-shell@v2
         with:
           arch: x64
@@ -132,80 +134,34 @@ jobs:
         run: |
           choco install wget unzip xidel
 
-      - name: Install Qt 5.15
-        uses: jurplel/install-qt-action@v2
-        with:
-          version: 5.15.2
-
-      - name: Install FFmpeg
-        shell: cmd
-        run: |
-          cd ..
-          xidel https://github.com/BtbN/FFmpeg-Builds/releases -e "//a[contains(@href, '-gpl-shared-4.4.zip')]/@href[1]" --silent > ffmpeg.url
-          xidel https://github.com/BtbN/FFmpeg-Builds/releases -e "(//a[contains(@href, '-gpl-shared-4.4.zip')])[1]/substring(., 0, string-length(.) - 3)" --silent > ffmpeg.name
-          set /P FFMPEG_URL=< ffmpeg.url
-          set /P FFMPEG_NAME=< ffmpeg.name
-          wget https://github.com%FFMPEG_URL%
-          unzip %FFMPEG_NAME%.zip
-          ren %FFMPEG_NAME% ffmpeg
-          dir ffmpeg
-          dir ffmpeg\bin
-          SET FFMPEG=%CD%\ffmpeg
-          echo FFMPEG=%FFMPEG%>>%GITHUB_ENV%
-          echo PATH=%FFMPEG%\lib;%FFMPEG%\bin;%PATH%>>%GITHUB_ENV%
-          echo INCLUDE=%FFMPEG%\include;%INCLUDE%>>%GITHUB_ENV%
-          echo LIB=%FFMPEG%\lib;%FFMPEG%\bin;%LIB%>>%GITHUB_ENV%
-
-      - name: Build
-        shell: cmd
-        run: |
-          qmake
-          nmake
-          nmake install
-
-      - name: Test
-        shell: cmd
-        run: |
-          set QT_LOGGING_RULES=qt.QtAVPlayer.debug=true
-          set QT_FORCE_STDERR_LOGGING=1
-          set QT_ASSUME_STDERR_HAS_CONSOLE=1
-          cd tests/
-          qmake
-          nmake
-          cd auto/integration/qavdemuxer
-          release\tst_qavdemuxer.exe
-          cd ../
-          cd qavplayer
-          release\tst_qavplayer.exe -maxwarnings 100000
-
-  windows-mingw-qmake-default:
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Install wget & unzip
-        run: |
-          choco install wget unzip xidel
-
-      - name: Install Qt 5.15
-        uses: jurplel/install-qt-action@v2
+      - name: Install Qt
+        if: ${{ matrix.type == 'MINGW' }}
+        uses: jurplel/install-qt-action@v3
         with:
           arch: win64_mingw81
-          version: 5.15.2
+          version: ${{ matrix.qt_version }}
+          modules: ${{ matrix.qt_modules }}
+
+      - name: Install Qt
+        if: ${{ matrix.type == 'MSVC' }}
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ matrix.qt_version }}
+          modules: ${{ matrix.qt_modules }}
 
       - name: Install FFmpeg
         shell: cmd
         run: |
           cd ..
-          xidel https://github.com/BtbN/FFmpeg-Builds/releases -e "//a[contains(@href, '-gpl-shared-4.4.zip')]/@href[1]" --silent > ffmpeg.url
-          xidel https://github.com/BtbN/FFmpeg-Builds/releases -e "(//a[contains(@href, '-gpl-shared-4.4.zip')])[1]/substring(., 0, string-length(.) - 3)" --silent > ffmpeg.name
+          xidel https://github.com/BtbN/FFmpeg-Builds/releases -e "//a[contains(@href, '-gpl-shared.zip')]/@href[1]" --silent > ffmpeg.url
+          xidel https://github.com/BtbN/FFmpeg-Builds/releases -e "(//a[contains(@href, '-gpl-shared.zip')])[1]/substring(., 0, string-length(.) - 3)" --silent > ffmpeg.name
           set /P FFMPEG_URL=< ffmpeg.url
           set /P FFMPEG_NAME=< ffmpeg.name
           wget https://github.com%FFMPEG_URL%
           unzip %FFMPEG_NAME%.zip
           ren %FFMPEG_NAME% ffmpeg
           dir ffmpeg
+          dir ffmpeg\include
           dir ffmpeg\bin
           SET FFMPEG=%CD%\ffmpeg
           echo FFMPEG=%FFMPEG%>>%GITHUB_ENV%
@@ -215,24 +171,49 @@ jobs:
           echo CPLUS_INCLUDE_PATH=%FFMPEG%\include;%CPLUS_INCLUDE_PATH%>>%GITHUB_ENV%
           echo LIB=%FFMPEG%\lib;%FFMPEG%\bin;%LIB%>>%GITHUB_ENV%
 
-      - name: Build
-        shell: cmd
-        run: |
-          qmake
-          mingw32-make
-          mingw32-make install
-
-      - name: Test
+      - name: QMake Test
+        if: ${{ matrix.type == 'MSVC' }}
         shell: cmd
         run: |
           set QT_LOGGING_RULES=qt.QtAVPlayer.debug=true
           set QT_FORCE_STDERR_LOGGING=1
           set QT_ASSUME_STDERR_HAS_CONSOLE=1
-          cd tests/
-          qmake
-          mingw32-make
-          cd auto/integration/qavdemuxer
+          cd tests/auto/integration/qavdemuxer
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          nmake
           release\tst_qavdemuxer.exe
-          cd ../
+          cd ../qavplayer
           cd qavplayer
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          nmake
           release\tst_qavplayer.exe -maxwarnings 100000
+
+      - name: QMake Test
+        if: ${{ matrix.type == 'MINGW' }}
+        shell: cmd
+        run: |
+          set QT_LOGGING_RULES=qt.QtAVPlayer.debug=true
+          set QT_FORCE_STDERR_LOGGING=1
+          set QT_ASSUME_STDERR_HAS_CONSOLE=1
+          cd tests/auto/integration/qavdemuxer
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          mingw32-make
+          release\tst_qavdemuxer.exe
+          cd ../qavplayer
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          mingw32-make
+          release\tst_qavplayer.exe -maxwarnings 100000
+
+      - name: Examples
+        if: ${{ matrix.type == 'MSVC' }}
+        run: |
+          cd examples/qml_video
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          nmake
+
+      - name: Examples
+        if: ${{ matrix.type == 'MINGW' }}
+        run: |
+          cd examples/qml_video
+          qmake DEFINES+="QT_AVPLAYER_MULTIMEDIA"
+          mingw32-make

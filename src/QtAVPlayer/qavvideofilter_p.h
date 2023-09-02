@@ -22,17 +22,24 @@
 #include "qavfilter_p.h"
 #include "qavvideoinputfilter_p.h"
 #include "qavvideooutputfilter_p.h"
+#include <QMutex>
 
 QT_BEGIN_NAMESPACE
 
 class QAVVideoFilterPrivate;
-class Q_AVPLAYER_EXPORT QAVVideoFilter : public QAVFilter
+class QAVVideoFilter : public QAVFilter
 {
 public:
-    QAVVideoFilter(const QList<QAVVideoInputFilter> &inputs, const QList<QAVVideoOutputFilter> &outputs, QObject *parent = nullptr);
+    QAVVideoFilter(
+        const QAVStream &stream,
+        const QString &name,
+        const QList<QAVVideoInputFilter> &inputs,
+        const QList<QAVVideoOutputFilter> &outputs,
+        QMutex &mutex);
 
     int write(const QAVFrame &frame) override;
     int read(QAVFrame &frame) override;
+    void flush() override;
 
 protected:
     Q_DECLARE_PRIVATE(QAVVideoFilter)

@@ -14,13 +14,13 @@
 #include <QtAVPlayer/qavstream.h>
 #include <QtAVPlayer/qtavplayerglobal.h>
 #include <QString>
-#include <QScopedPointer>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
 class QIODevice;
 class QAVPlayerPrivate;
-class Q_AVPLAYER_EXPORT QAVPlayer : public QObject
+class QAVPlayer : public QObject
 {
     Q_OBJECT
     Q_ENUMS(State)
@@ -56,17 +56,20 @@ public:
     void setSource(const QString &url, QIODevice *dev = nullptr);
     QString source() const;
 
-    QList<QAVStream> videoStreams() const;
-    QAVStream videoStream() const;
+    QList<QAVStream> availableVideoStreams() const;
+    QList<QAVStream> currentVideoStreams() const;
     void setVideoStream(const QAVStream &stream);
+    void setVideoStreams(const QList<QAVStream> &streams);
 
-    QList<QAVStream> audioStreams() const;
-    QAVStream audioStream() const;
+    QList<QAVStream> availableAudioStreams() const;
+    QList<QAVStream> currentAudioStreams() const;
     void setAudioStream(const QAVStream &stream);
+    void setAudioStreams(const QList<QAVStream> &streams);
 
-    QList<QAVStream> subtitleStreams() const;
-    QAVStream subtitleStream() const;
+    QList<QAVStream> availableSubtitleStreams() const;
+    QList<QAVStream> currentSubtitleStreams() const;
     void setSubtitleStream(const QAVStream &stream);
+    void setSubtitleStreams(const QList<QAVStream> &streams);
 
     State state() const;
     MediaStatus mediaStatus() const;
@@ -76,7 +79,8 @@ public:
     double videoFrameRate() const;
 
     void setFilter(const QString &desc);
-    QString filter() const;
+    void setFilters(const QList<QString> &filters);
+    QList<QString> filters() const;
 
     void setBitstreamFilter(const QString &desc);
     QString bitstreamFilter() const;
@@ -85,6 +89,18 @@ public:
 
     bool isSynced() const;
     void setSynced(bool sync);
+
+    QString inputFormat() const;
+    void setInputFormat(const QString &format);
+
+    QString inputVideoCodec() const;
+    void setInputVideoCodec(const QString &codec);
+    static QStringList supportedVideoCodecs();
+
+    QMap<QString, QString> inputOptions() const;
+    void setInputOptions(const QMap<QString, QString> &opts);
+
+    QAVStream::Progress progress(const QAVStream &stream) const;
 
 public Q_SLOTS:
     void play();
@@ -104,24 +120,27 @@ Q_SIGNALS:
     void seekableChanged(bool seekable);
     void speedChanged(qreal rate);
     void videoFrameRateChanged(double rate);
-    void videoStreamChanged(const QAVStream &stream);
-    void audioStreamChanged(const QAVStream &stream);
-    void subtitleStreamChanged(const QAVStream &stream);
+    void videoStreamsChanged(const QList<QAVStream> &streams);
+    void audioStreamsChanged(const QList<QAVStream> &streams);
+    void subtitleStreamsChanged(const QList<QAVStream> &streams);
     void played(qint64 pos);
     void paused(qint64 pos);
     void stopped(qint64 pos);
     void stepped(qint64 pos);
     void seeked(qint64 pos);
-    void filterChanged(const QString &desc);
+    void filtersChanged(const QList<QString> &filters);
     void bitstreamFilterChanged(const QString &desc);
     void syncedChanged(bool sync);
+    void inputFormatChanged(const QString &format);
+    void inputVideoCodecChanged(const QString &codec);
+    void inputOptionsChanged(const QMap<QString, QString> &opts);
 
     void videoFrame(const QAVVideoFrame &frame);
     void audioFrame(const QAVAudioFrame &frame);
     void subtitleFrame(const QAVSubtitleFrame &frame);
 
 protected:
-    QScopedPointer<QAVPlayerPrivate> d_ptr;
+    std::unique_ptr<QAVPlayerPrivate> d_ptr;
 
 private:
     Q_DISABLE_COPY(QAVPlayer)
@@ -129,9 +148,9 @@ private:
 };
 
 #ifndef QT_NO_DEBUG_STREAM
-Q_AVPLAYER_EXPORT QDebug operator<<(QDebug, QAVPlayer::State);
-Q_AVPLAYER_EXPORT QDebug operator<<(QDebug, QAVPlayer::MediaStatus);
-Q_AVPLAYER_EXPORT QDebug operator<<(QDebug, QAVPlayer::Error);
+QDebug operator<<(QDebug, QAVPlayer::State);
+QDebug operator<<(QDebug, QAVPlayer::MediaStatus);
+QDebug operator<<(QDebug, QAVPlayer::Error);
 #endif
 
 Q_DECLARE_METATYPE(QAVPlayer::State)

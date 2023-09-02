@@ -20,14 +20,14 @@
 //
 
 #include <QtAVPlayer/qtavplayerglobal.h>
-#include <QScopedPointer>
 #include <QIODevice>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
 struct AVIOContext;
 class QAVIODevicePrivate;
-class Q_AVPLAYER_EXPORT QAVIODevice : public QObject
+class QAVIODevice : public QObject
 {
 public:
     QAVIODevice(QIODevice &device, QObject *parent = nullptr);
@@ -37,7 +37,7 @@ public:
     void abort(bool aborted);
 
 protected:
-    QScopedPointer<QAVIODevicePrivate> d_ptr;
+    std::unique_ptr<QAVIODevicePrivate> d_ptr;
 
 private:
     Q_DECLARE_PRIVATE(QAVIODevice)

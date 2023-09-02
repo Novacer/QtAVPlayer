@@ -19,20 +19,21 @@
 // We mean it.
 //
 
+#include "qavframe.h"
 #include "qavcodec_p.h"
+#include "qavpacket_p.h"
 
 QT_BEGIN_NAMESPACE
 
-struct AVPacket;
-struct AVFrame;
-class Q_AVPLAYER_EXPORT QAVFrameCodec : public QAVCodec
+class QAVFrameCodec : public QAVCodec
 {
 public:
-    bool decode(const AVPacket *pkt, AVFrame *frame) const;
+    int write(const QAVPacket &pkt) override;
+    int read(QAVStreamFrame &frame) override;
 
 protected:
-    QAVFrameCodec(QObject *parent = nullptr);
-    QAVFrameCodec(QAVCodecPrivate &d, QObject *parent = nullptr);
+    QAVFrameCodec();
+    QAVFrameCodec(QAVCodecPrivate &d);
 };
 
 QT_END_NAMESPACE

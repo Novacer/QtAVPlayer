@@ -19,6 +19,8 @@
 // We mean it.
 //
 
+#include <QString>
+
 QT_BEGIN_NAMESPACE
 
 class QAVInOutFilter;
@@ -31,6 +33,7 @@ public:
 
     QAVInOutFilter *q_ptr = nullptr;
     AVFilterContext *ctx = nullptr;
+    QString name;
 };
 
 QT_END_NAMESPACE

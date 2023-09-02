@@ -15,8 +15,8 @@ extern "C" {
 
 QT_BEGIN_NAMESPACE
 
-QAVVideoOutputFilter::QAVVideoOutputFilter(QObject *parent)
-    : QAVInOutFilter(*new QAVInOutFilterPrivate(this), parent)
+QAVVideoOutputFilter::QAVVideoOutputFilter()
+    : QAVInOutFilter(*new QAVInOutFilterPrivate(this))
 {
 }
 
@@ -24,6 +24,7 @@ QAVVideoOutputFilter::~QAVVideoOutputFilter() = default;
 
 int QAVVideoOutputFilter::configure(AVFilterGraph *graph, AVFilterInOut *out)
 {
+    QAVInOutFilter::configure(graph, out);
     Q_D(QAVInOutFilter);
     static int index = 0;
     char name[255];

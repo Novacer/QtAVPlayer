@@ -10,7 +10,9 @@
 
 #include <QtAVPlayer/qavframe.h>
 #include <QVariant>
+#ifdef QT_AVPLAYER_MULTIMEDIA
 #include <QVideoFrame>
+#endif
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -20,20 +22,24 @@ QT_BEGIN_NAMESPACE
 
 class QAVVideoFramePrivate;
 class QAVCodec;
-class Q_AVPLAYER_EXPORT QAVVideoFrame : public QAVFrame
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+class QRhi;
+#endif
+class QAVVideoFrame : public QAVFrame
 {
 public:
     enum HandleType
     {
         NoHandle,
         GLTextureHandle,
-        MTLTextureHandle
+        MTLTextureHandle,
+        D3D11Texture2DHandle
     };
 
-    QAVVideoFrame(QObject *parent = nullptr);
-    QAVVideoFrame(const QAVFrame &other, QObject *parent = nullptr);
-    QAVVideoFrame(const QAVVideoFrame &other, QObject *parent = nullptr);
-    QAVVideoFrame(const QSize &size, AVPixelFormat fmt, QObject *parent = nullptr);
+    QAVVideoFrame();
+    QAVVideoFrame(const QAVFrame &other);
+    QAVVideoFrame(const QAVVideoFrame &other);
+    QAVVideoFrame(const QSize &size, AVPixelFormat fmt);
 
     QAVVideoFrame &operator=(const QAVFrame &other);
     QAVVideoFrame &operator=(const QAVVideoFrame &other);
@@ -50,13 +56,17 @@ public:
 
     MapData map() const;
     HandleType handleType() const;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QVariant handle(QRhi *rhi = nullptr) const;
+#else
     QVariant handle() const;
-
+#endif
     AVPixelFormat format() const;
     QString formatName() const;
     QAVVideoFrame convertTo(AVPixelFormat fmt) const;
-
+#ifdef QT_AVPLAYER_MULTIMEDIA
     operator QVideoFrame() const;
+#endif
 
 protected:
     Q_DECLARE_PRIVATE(QAVVideoFrame)

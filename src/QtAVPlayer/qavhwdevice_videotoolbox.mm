@@ -29,9 +29,8 @@ public:
     CVPixelBufferRef pbuf = nullptr;
 };
 
-QAVHWDevice_VideoToolbox::QAVHWDevice_VideoToolbox(QObject *parent)
-    : QObject(parent)
-    , d_ptr(new QAVHWDevice_VideoToolboxPrivate)
+QAVHWDevice_VideoToolbox::QAVHWDevice_VideoToolbox()
+    : d_ptr(new QAVHWDevice_VideoToolboxPrivate)
 {
 }
 
@@ -66,7 +65,7 @@ public:
         return QAVVideoFrame::MTLTextureHandle;
     }
 
-    QVariant handle() const override
+    QVariant handle(QRhi */*rhi*/) const override
     {
         CVPixelBufferRelease(m_hw->pbuf);
         m_hw->pbuf = (CVPixelBufferRef)frame().frame()->data[3];
@@ -107,7 +106,7 @@ public:
 
 QAVVideoBuffer *QAVHWDevice_VideoToolbox::videoBuffer(const QAVVideoFrame &frame) const
 {
-    return new VideoBuffer_MTL(d_ptr.data(), frame);
+    return new VideoBuffer_MTL(d_ptr.get(), frame);
 }
 
 QT_END_NAMESPACE

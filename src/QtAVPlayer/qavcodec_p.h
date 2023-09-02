@@ -19,8 +19,10 @@
 // We mean it.
 //
 
+#include "qavpacket_p.h"
+#include "qavframe.h"
 #include <QtAVPlayer/qtavplayerglobal.h>
-#include <QObject>
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 
@@ -28,20 +30,28 @@ struct AVCodec;
 struct AVCodecContext;
 struct AVStream;
 class QAVCodecPrivate;
-class Q_AVPLAYER_EXPORT QAVCodec : public QObject
+class QAVCodec
 {
 public:
-    ~QAVCodec();
+    virtual ~QAVCodec();
 
     bool open(AVStream *stream);
     AVCodecContext *avctx() const;
     void setCodec(const AVCodec *c);
     const AVCodec *codec() const;
 
+    void flushBuffers();
+
+    // Sends a packet
+    virtual int write(const QAVPacket &pkt) = 0;
+    // Receives a frame
+    // NOTE: There could be multiple frames
+    virtual int read(QAVStreamFrame &frame) = 0;
+
 protected:
-    QAVCodec(QObject *parent = nullptr);
-    QAVCodec(QAVCodecPrivate &d, QObject *parent = nullptr);
-    QScopedPointer<QAVCodecPrivate> d_ptr;
+    QAVCodec();
+    QAVCodec(QAVCodecPrivate &d);
+    std::unique_ptr<QAVCodecPrivate> d_ptr;
     Q_DECLARE_PRIVATE(QAVCodec)
 private:
     Q_DISABLE_COPY(QAVCodec)

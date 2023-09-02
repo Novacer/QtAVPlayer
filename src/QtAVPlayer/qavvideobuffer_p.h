@@ -24,7 +24,8 @@
 
 QT_BEGIN_NAMESPACE
 
-class Q_AVPLAYER_EXPORT QAVVideoBuffer
+class QRhi;
+class QAVVideoBuffer
 {
 public:
     QAVVideoBuffer() = default;
@@ -34,8 +35,7 @@ public:
 
     virtual QAVVideoFrame::MapData map() = 0;
     virtual QAVVideoFrame::HandleType handleType() const { return QAVVideoFrame::NoHandle; }
-    virtual QVariant handle() const { return {}; }
-
+    virtual QVariant handle(QRhi */*rhi*/ = nullptr) const { return {}; }
 protected:
     QAVVideoFrame m_frame;
 };

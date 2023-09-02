@@ -17,28 +17,30 @@ extern "C" {
 
 QT_BEGIN_NAMESPACE
 
-QAVFrameCodec::QAVFrameCodec(QObject *parent)
-    : QAVCodec(parent)
+QAVFrameCodec::QAVFrameCodec()
 {
 }
 
-QAVFrameCodec::QAVFrameCodec(QAVCodecPrivate &d, QObject *parent)
-    : QAVCodec(d, parent)
+QAVFrameCodec::QAVFrameCodec(QAVCodecPrivate &d)
+    : QAVCodec(d)
 {
 }
 
-bool QAVFrameCodec::decode(const AVPacket *pkt, AVFrame *frame) const
+int QAVFrameCodec::write(const QAVPacket &pkt)
 {
-    Q_D(const QAVCodec);
+    Q_D(QAVCodec);
     if (!d->avctx)
-        return false;
+        return AVERROR(EINVAL);
+    return avcodec_send_packet(d->avctx, pkt ? pkt.packet() : nullptr);
+}
 
-    int ret = avcodec_send_packet(d->avctx, pkt);
-    if (ret < 0 && ret != AVERROR(EAGAIN))
-        return false;
-
-    avcodec_receive_frame(d->avctx, frame);
-    return true;
+int QAVFrameCodec::read(QAVStreamFrame &frame)
+{
+    Q_D(QAVCodec);
+    if (!d->avctx)
+        return AVERROR(EINVAL);
+    auto f = static_cast<QAVFrame *>(&frame);
+    return avcodec_receive_frame(d->avctx, f->frame());
 }
 
 QT_END_NAMESPACE
