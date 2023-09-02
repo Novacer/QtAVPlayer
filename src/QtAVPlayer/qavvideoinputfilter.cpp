@@ -54,7 +54,7 @@ QAVVideoInputFilter::QAVVideoInputFilter(const QAVFrame &frame)
 }
 
 QAVVideoInputFilter::QAVVideoInputFilter(const QAVVideoInputFilter &other)
-    : QAVVideoInputFilter({})
+    : QAVVideoInputFilter()
 {
     *this = other;
 }
