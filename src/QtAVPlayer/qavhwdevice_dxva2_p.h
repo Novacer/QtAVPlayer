@@ -16,7 +16,7 @@
 
 QT_BEGIN_NAMESPACE
 
-class Q_AVPLAYER_EXPORT QAVHWDevice_DXVA2 : public QObject, public QAVHWDevice
+class QAVHWDevice_DXVA2 : public QObject, public QAVHWDevice
 {
 public:
     QAVHWDevice_DXVA2(QObject *parent = nullptr);
