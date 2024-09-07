@@ -65,8 +65,6 @@ bool QAVCodec::open(AVStream *stream)
 
     d->avctx->codec_id = d->codec->id;
 
-    d->avctx->refcounted_frames = true;
-
     // Improve decoding perfomance by enabling threading if possible.
     d->avctx->thread_count = 0;
     if (d->codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
