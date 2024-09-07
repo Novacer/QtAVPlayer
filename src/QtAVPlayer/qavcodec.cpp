@@ -65,8 +65,21 @@ bool QAVCodec::open(AVStream *stream)
 
     d->avctx->codec_id = d->codec->id;
 
-    av_opt_set_int(d->avctx, "refcounted_frames", true, 0);
-    av_opt_set_int(d->avctx, "threads", 1, 0);
+    d->avctx->refcounted_frames = true;
+
+    // Improve decoding perfomance by enabling threading if possible.
+    d->avctx->thread_count = 0;
+    if (d->codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
+        d->avctx->thread_type = FF_THREAD_FRAME;
+    }
+    else if (d->codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
+        d->avctx->thread_type = FF_THREAD_SLICE;
+    }
+    else {
+        // Don't use multithreading.
+        d->avctx->thread_count = 1;
+    }
+
     ret = avcodec_open2(d->avctx, d->codec, nullptr);
     if (ret < 0) {
         qWarning() << "Could not open the codec:" << d->codec->name << ret;
