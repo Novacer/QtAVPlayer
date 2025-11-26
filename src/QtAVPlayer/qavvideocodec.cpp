@@ -28,31 +28,22 @@ public:
 
 static bool isSoftwarePixelFormat(AVPixelFormat from)
 {
-    switch (from) {
-    case AV_PIX_FMT_VAAPI:
-    case AV_PIX_FMT_VDPAU:
-    case AV_PIX_FMT_MEDIACODEC:
-    case AV_PIX_FMT_VIDEOTOOLBOX:
-    case AV_PIX_FMT_D3D11:
-    case AV_PIX_FMT_D3D11VA_VLD:
-#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(56, 0, 0)
-    case AV_PIX_FMT_OPENCL:
-#endif
-    case AV_PIX_FMT_CUDA:
-    case AV_PIX_FMT_DXVA2_VLD:
-#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 58, 101)
-    case AV_PIX_FMT_XVMC:
-#endif
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(58, 134, 0)
-    case AV_PIX_FMT_VULKAN:
-#endif
-    case AV_PIX_FMT_DRM_PRIME:
-    case AV_PIX_FMT_MMAL:
-    case AV_PIX_FMT_QSV:
-        return false;
-    default:
-        return true;
+    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(from);
+    
+    // If the format is invalid or not found, assume it's not a software format
+    if (!desc) {
+        return true; 
     }
+    
+    // If the format has the AV_PIX_FMT_FLAG_HWACCEL flag, it is NOT a software format.
+    // This flag is defined for all modern hardware acceleration formats (VAAPI, CUDA, etc.).
+    if (desc->flags & AV_PIX_FMT_FLAG_HWACCEL) {
+        return false;
+    }
+
+    // This handles all standard formats like AV_PIX_FMT_YUV420P, AV_PIX_FMT_RGB24, etc.,
+    // which do not have the HWACCEL flag.
+    return true;
 }
 
 static AVPixelFormat negotiate_pixel_format(AVCodecContext *c, const AVPixelFormat *f)

@@ -359,7 +359,7 @@ int QAVDemuxer::load(const QString &url, QAVIODevice *dev)
     locker.relock();
     av_log_set_callback(log_callback);
 
-    d->seekable = d->ctx->iformat->read_seek || d->ctx->iformat->read_seek2;
+    d->seekable = false;
     if (d->ctx->pb)
         d->seekable |= bool(d->ctx->pb->seekable);
 
